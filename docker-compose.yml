@@ -3,8 +3,6 @@ services:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: openclaw-gateway
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:18789:18789"
     volumes:
       - ./.docker/openclaw/config:/home/node/.openclaw
       - ./.docker/openclaw/workspace:/home/node/.openclaw/workspace
@@ -14,11 +12,20 @@ services:
       # Токен шлюза (генерируется автоматически при первом запуске, если не задан)
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-}
       - OPENCLAW_GATEWAY_BIND=lan
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
+      # Прокси для обхода блокировок Telegram в России
+      - HTTP_PROXY=socks5://xray:10808
+      - HTTPS_PROXY=socks5://xray:10808
+      - ALL_PROXY=socks5://xray:10808
     mem_limit: 2g
     memswap_limit: 3g
+    networks:
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.openclaw.rule=Host(`${OPENCLAW_DOMAIN}`)"
+      - "traefik.http.routers.openclaw.entrypoints=websecure"
+      - "traefik.http.routers.openclaw.tls.certresolver=letsencrypt"
+      - "traefik.http.services.openclaw.loadbalancer.server.port=18789"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:18789/healthz"]
       interval: 30s
@@ -30,3 +37,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  traefik_public:
+    external: true

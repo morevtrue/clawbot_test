@@ -1,6 +1,6 @@
-# OpenClaw — Docker + Telegram Bot
+# OpenClaw — Docker + Telegram Bot + Traefik + VPN
 
-Персональный AI-ассистент в Telegram, запущенный через Docker.
+Персональный AI-ассистент в Telegram, запущенный через Docker с интеграцией в Traefik и VPN для обхода блокировок.
 Использует OpenRouter как провайдер моделей (бесплатный тир, карта не нужна).
 
 ---
@@ -10,12 +10,26 @@
 - Docker Engine 20.10+ и Docker Compose v2
 - API-ключ OpenRouter — [openrouter.ai](https://openrouter.ai) → Keys
 - Telegram-бот — создаётся через @BotFather
+- Запущенные сервисы: Traefik и Xray VPN
 
 Проверить версии:
 ```bash
 docker --version
 docker compose version
 ```
+
+---
+
+## Архитектура
+
+```
+Internet → Traefik (SSL) → OpenClaw → Xray VPN → Telegram API
+                                                  (обход блокировок)
+```
+
+- **Traefik**: reverse proxy с автоматическими SSL сертификатами
+- **Xray VPN**: SOCKS5 прокси для обхода блокировок Telegram в России
+- **OpenClaw**: AI-ассистент с подключением через VPN
 
 ---
 
@@ -37,12 +51,29 @@ cp .env.example .env
 Открой `.env` и заполни:
 ```env
 OPENROUTER_API_KEY=sk-or-v1-...
+OPENCLAW_DOMAIN=openclaw.morevslava.duckdns.org
 ```
+
+> Домен должен быть настроен в DNS и указывать на сервер с Traefik
 
 ---
 
 ## Шаг 3 — Запустить контейнер
 
+**Важно**: Убедись, что Traefik и Xray VPN уже запущены:
+```bash
+# Проверить статус инфраструктуры
+docker ps | grep -E "traefik|xray"
+```
+
+Если не запущены, запусти их:
+```bash
+cd ../traefik && docker compose up -d
+cd ../infra && docker compose up -d
+cd ../clawbot_test
+```
+
+Теперь запусти OpenClaw:
 ```bash
 docker compose up -d
 ```
@@ -56,6 +87,8 @@ docker compose logs -f openclaw
 Health-check:
 ```bash
 curl http://127.0.0.1:18789/healthz
+# или через домен
+curl https://openclaw.morevslava.duckdns.org/healthz
 ```
 
 ---
@@ -156,13 +189,29 @@ docker compose logs -f openclaw
 
 **Permission denied на конфиг**
 ```bash
+# Остановить контейнер
+docker compose down
+
+# Исправить права (контейнер работает от UID 1000)
 sudo chown -R 1000:1000 .docker/openclaw/
+
+# Запустить снова
+docker compose up -d
 ```
 
 **Бот не отвечает в Telegram**
 ```bash
 docker compose logs --tail 50 openclaw
 # Должна быть строка: "starting provider (@username)"
+```
+
+Проверь подключение через VPN:
+```bash
+# Проверить что Xray работает
+docker exec -it xray sh -c "netstat -tuln | grep 10808"
+
+# Проверить что OpenClaw использует прокси
+docker compose logs openclaw | grep -i proxy
 ```
 
 **Модель не отвечает (429 rate limit)**
@@ -181,3 +230,25 @@ docker compose exec openclaw openclaw devices approve <requestId>
 **SOUL.md не применяется**
 Редактируй файл напрямую на хосте: `.docker/openclaw/workspace/SOUL.md`
 После редактирования перезапусти контейнер и начни новую сессию в TUI.
+
+**Telegram API недоступен (блокировка)**
+Убедись что Xray VPN работает и OpenClaw подключен к сети `traefik_public`:
+```bash
+docker network inspect traefik_public | grep -A 5 openclaw
+docker network inspect traefik_public | grep -A 5 xray
+```
+
+**SSL сертификат не выдаётся**
+Проверь что домен правильно настроен в DNS и Traefik работает:
+```bash
+docker compose -f ../traefik/docker-compose.yml logs traefik | grep -i acme
+```
+
+---
+
+## Безопасность
+
+- OpenClaw доступен через HTTPS с автоматическими SSL сертификатами
+- Весь трафик к Telegram API идёт через VPN (Xray)
+- Порты не открыты напрямую, доступ только через Traefik
+- Логи ротируются автоматически (max 10MB × 3 файла)
