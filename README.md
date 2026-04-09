@@ -51,7 +51,7 @@ cp .env.example .env
 Открой `.env` и заполни:
 ```env
 OPENROUTER_API_KEY=sk-or-v1-...
-OPENCLAW_DOMAIN=openclaw.morevslava.duckdns.org
+OPENCLAW_DOMAIN=your-domain.com
 ```
 
 > Домен должен быть настроен в DNS и указывать на сервер с Traefik
@@ -88,7 +88,7 @@ Health-check:
 ```bash
 curl http://127.0.0.1:18789/healthz
 # или через домен
-curl https://openclaw.morevslava.duckdns.org/healthz
+curl https://your-domain.com/healthz
 ```
 
 ---
