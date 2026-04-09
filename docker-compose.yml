@@ -1,0 +1,32 @@
+services:
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18789:18789"
+    volumes:
+      - ./.docker/openclaw/config:/home/node/.openclaw
+      - ./.docker/openclaw/workspace:/home/node/.openclaw/workspace
+    environment:
+      # OpenRouter — вставь ключ из openrouter.ai
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      # Токен шлюза (генерируется автоматически при первом запуске, если не задан)
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-}
+      - OPENCLAW_GATEWAY_BIND=lan
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    mem_limit: 2g
+    memswap_limit: 3g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18789/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

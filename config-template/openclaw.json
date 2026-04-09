@@ -1,0 +1,31 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "lan",
+    "port": 18789,
+    "auth": {
+      "token": "REPLACE_WITH_YOUR_TOKEN"
+    },
+    "controlUi": {
+      "allowedOrigins": ["http://127.0.0.1:18789"]
+    }
+  },
+  "models": {
+    "providers": {
+      "anthropic": {
+        "apiKey": "REPLACE_WITH_ANTHROPIC_KEY"
+      }
+    },
+    "default": "claude-haiku-3-5"
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "REPLACE_WITH_TELEGRAM_BOT_TOKEN",
+      "dmPolicy": "open",
+      "allowFrom": ["*"],
+      "groupPolicy": "allowlist",
+      "streamMode": "partial"
+    }
+  }
+}
